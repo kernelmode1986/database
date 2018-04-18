@@ -1,0 +1,98 @@
+一.interval分区,见方欣七张底表加工(24个月).sql。注意日期类型，只能取当月的第一天。
+create table kphzxx_sale_day 
+(...) partition by range(kpqj)
+interval(numtoyminterval(1,'month'))
+(
+partition p_month_1 values less than (to_date('2015-11-01','yyyy-mm-dd'))
+);
+*/
+分区的作用
+https://www.2cto.com/database/201202/118595.html
+
+二.索引
+建设原则:
+
+　1、索引应该经常建在Where 子句经常用到的列上。如果某个大表经常使用某个字段进行查询，并且检索行数小于总表行数的5%。则应该考虑。
+
+　2、对于两表连接的字段，应该建立索引。如果经常在某表的一个字段进行Order By 则也经过进行索引。
+
+　3、不应该在小表上建设索引。
+--下面的方式oracle不适用name索引
+
+select * from student where name like '%wish%';
+
+--如果通配符出现在字符串的其他位置时，优化器能够利用索引；如下：
+
+select * from student where name like 'wish%';
+
+
+如果索引建立在多个列上，只有它的第一个列被where子句引用时，优化器才会使用该索引
+
+（1）*Tree索引。
+Create index indexname on tablename(columnname[columnname...])
+
+（3）降序索引。
+Create index indexname on tablename(columnname DESC[columnname...])
+例子：create index ind_desc on test(a desc，b asc);
+然后 select * from test where a between 1 and 100 order by a desc，b asc;
+
+（5）函数索引。
+Create index indexname on tablename(functionname(columnname))
+
+
+
+
+三.dbms_stats
+
+1.分析表
+
+begin
+
+dbms_stats.gather_table_stats (
+
+  ownname          => 'TEST',
+
+  tabname          => 'STUDENT',
+
+  estimate_percent => dbms_stats.AUTO_SAMPLE_SIZE,
+
+  degree           => 4,
+
+  cascade          => TRUE);
+
+end;
+
+2.分析用户
+
+begin
+
+dbms_stats.gather_schema_stats(
+
+    ownname          => 'TEST',
+
+    estimate_percent => dbms_stats.AUTO_SAMPLE_SIZE,
+
+    degree           => 4,
+
+    cascade          => TRUE);
+
+end;
+
+3.分析索引
+
+begin
+
+dbms_stats.gather_index_stats(
+
+  ownname          => 'TEST',
+
+  indname          => 'IDX_STUDENT_BIRTH',
+
+  estimate_percent => dbms_stats.AUTO_SAMPLE_SIZE,
+
+  degree           => 4);
+
+end;
+
+四.执行计划
+手动打印执行计划

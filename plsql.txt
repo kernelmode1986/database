@@ -1,0 +1,1 @@
+1.row_number() over(partition by kpny,xfnsrdzdah order by zcje_sum desc)

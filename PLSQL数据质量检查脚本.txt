@@ -1,0 +1,218 @@
+﻿/*
+PL/SQL是ORACLE对标准数据库语言的扩展，ORACLE提供了四种类型的可存储的程序,函数、过程、包、触发器。函数是命名了的、存储在数据库中的PL/SQL程序块。
+1.execute immediate sql_string;
+2.pl/sql里的数组 
+type t_tlb_set_type is table of varchar2(50);
+v_tlb_set t_tlb_set_type :=t_tlb_set_type(
+  'nsrjbxx',
+  'nsrlxxx');
+3.all_tab_columns系统表
+*/
+/*
+创建质量检查日志表单： jdjr_data_check
+*/
+create table jdjr_data_check
+(data_yf     varchar(30), 
+ table_name  varchar(100),
+ column_name  varchar(100),
+ data_type   varchar(30),
+ record_count integer ,
+ null_rate number(38,6),
+ zero_rate number(38,6),
+ min_value number(38,6),
+ max_value number(38,6),
+ avg_value number(38,6),
+ mid_value number(38,6),
+ std_value number(38,6)
+);
+
+/*
+数据质量检查脚本： 基本信息数据质量统计
+输入参入：
+s_owner_name：例如：sjck（实例名）； 
+s_tlb_name: 例如：'jdjr_nsrxx' （纳税人基本信息表）/jdjr_nsrlxxx(纳税人联系信息表)
+s_data_yf: 例如：'201707';
+*/
+declare
+s_data_yf varchar2(20);
+s_num varchar2(3000);
+s_str varchar2(3000);
+s_owner_name varchar2(20);
+s_tlb_name varchar2(50);
+type t_tlb_set_type is table of varchar2(50);
+--定义了一种数据结构t_tlb_set_type，是varchar2(50)的数组。
+v_tlb_set t_tlb_set_type :=t_tlb_set_type(
+  'nsrjbxx',
+  'nsrlxxx');
+col_count number;
+type t_col_tbl is table of all_tab_columns%rowtype;
+--定义了一种数据结构，是all_tab_columns表的行类型rowtype的数组，类似数组的数组。
+var_col t_col_tbl;
+begin
+s_data_yf:='201707';
+s_owner_name:='dzdz_query';
+s_tlb_name:='nsrjbxx';
+for k in v_tlb_set.first .. v_tlb_set.last loop
+  s_tlb_name:=v_tlb_set(k);
+  select /*parallel(16)*/ * bulk collect into var_col from all_tab_columns where table_name=upper(s_tlb_name);
+--16核并行，BULK COLLECT 子句会批量检索结果，即一次性将结果集绑定到一个集合变量中。
+for i in var_col.first..var_col.last loop
+  s_num := 'insert into jdjr_data_check(
+  data_yf,
+  table_name,
+  column_name,
+  data_type,
+  record_count,
+  null_rate,
+  zero_rate,
+  min_value,
+  max_value,
+  avg_value,
+  mid_value,
+  std_value
+  )
+  select /*parallel(16)*/  '
+  ||s_data_yf||','||
+  '''@table_name'',
+  ''@column_name'',
+  ''@data_type'',
+  count(@column_name),
+  decode(count(@column_name),0,0,count(decode(@column_name,null,1))/count(@column_name)),
+  decode(count(@column_name),0,0,count(decode(@column_name,0,1))/count(@column_name)),
+  min(@column_name),
+  max(@column_name),
+  avg(@column_name),
+  median(@column_name),
+  stddev(@column_name)
+  from '||s_owner_name||'.'||s_tlb_name||' 
+  where 1=1
+   ';
+--至此，s_num变量赋值结束。||代表连接。
+  s_str := 'insert into jdjr_data_check(
+  data_yf,
+  table_name,
+  column_name,
+  data_type,
+  null_rate
+  )
+  select /*parallel(16)*/  '
+  ||s_data_yf||','||
+  '''@table_name'',
+  ''@column_name'',
+  ''@data_type'',
+  decode(count(@column_name),0,0,count(decode(@column_name,null,1))/count(@column_name))
+  decode(count(@column_name),0,0,count(decode(@column_name,null,1))/count(@column_name)),
+  from '||s_owner_name||'.'||s_tlb_name||' 
+  where 1=1';
+--@table_name，@column_name，占位符。
+   --dbms_output.put_line(var_col(i).column_name);
+
+   if var_col(i).data_type in ('VARCHAR','VARCHAR2','CHAR','DATE')  then
+      s_str:=replace(s_str,'@table_name',var_col(i).table_name);
+      s_str:=replace(s_str,'@column_name',var_col(i).column_name);
+      s_str:=replace(s_str,'@data_type',var_col(i).data_type);
+      --dbms_output.put_line(s_str); 
+      execute immediate s_str;
+    else  
+      s_num:=replace(s_num,'@table_name',var_col(i).table_name);
+      s_num:=replace(s_num,'@column_name',var_col(i).column_name);
+      s_num:=replace(s_num,'@data_type',var_col(i).data_type);
+      --dbms_output.put_line(s_num); 
+      execute immediate s_num;
+    end if;
+ end loop;
+ end loop;
+ commit;
+end;
+
+
+
+
+declare
+s_data_yf varchar2(20);
+s_num varchar2(3000);
+s_str varchar2(3000);
+s_owner_name varchar2(20);
+s_tlb_name varchar2(50);
+type t_tlb_set_type is table of varchar2(50);
+v_tlb_set t_tlb_set_type :=t_tlb_set_type(
+  'kphzxx',
+  'syxxhz',
+  'xyxxhz',
+  'khxsdq',
+  'spxxhz');
+col_count number;
+type t_col_tbl is table of all_tab_columns%rowtype;
+var_col t_col_tbl;
+begin
+s_data_yf:='201707';
+s_owner_name:='dzdz_query';
+for k in v_tlb_set.first .. v_tlb_set.last loop
+  s_tlb_name:=v_tlb_set(k);
+  select /*parallel(16)*/ * bulk collect into var_col from all_tab_columns where table_name=upper(s_tlb_name);
+
+for i in var_col.first..var_col.last loop
+  s_num := 'insert into jdjr_data_check(
+  data_yf,
+  table_name,
+  column_name,
+  data_type,
+  record_count,
+  null_rate,
+  zero_rate,
+  min_value,
+  max_value,
+  avg_value,
+  mid_value,
+  std_value
+  )
+  select /*parallel(16)*/ '
+  ||s_data_yf||','||
+  '''@table_name'',
+  ''@column_name'',
+  ''@data_type'',
+  count(@column_name),
+  decode(count(@column_name),0,0,count(decode(@column_name,null,1))/count(@column_name)),
+  decode(count(@column_name),0,0,count(decode(@column_name,0,1))/count(@column_name)),
+  min(@column_name),
+  max(@column_name),
+  avg(@column_name),
+  median(@column_name),
+  stddev(@column_name)
+  from '||s_owner_name||'.'||s_tlb_name||' 
+   where 1=1
+   '
+   ;
+   s_str := 'insert into jdjr_data_check(
+  data_yf,
+  table_name,
+  column_name,
+  data_type,
+  null_rate
+  )
+  select /*parallel(16)*/ '
+  ||s_data_yf||','||
+  '''@table_name'',
+  ''@column_name'',
+  ''@data_type'',
+  decode(count(@column_name),0,0,count(decode(@column_name,null,1))/count(@column_name))
+  from '||s_owner_name||'.'||s_tlb_name||' 
+   where 1=1
+   '
+   ;   
+   if var_col(i).data_type in ('VARCHAR','VARCHAR2','CHAR','DATE')  then
+      s_str:=replace(s_str,'@table_name',var_col(i).table_name);
+      s_str:=replace(s_str,'@column_name',var_col(i).column_name);
+      s_str:=replace(s_str,'@data_type',var_col(i).data_type);
+      execute immediate s_str;
+    else  
+      s_num:=replace(s_num,'@table_name',var_col(i).table_name);
+      s_num:=replace(s_num,'@column_name',var_col(i).column_name);
+      s_num:=replace(s_num,'@data_type',var_col(i).data_type);
+      --dbms_output.put_line(s_num); 
+      execute immediate s_num;
+    end if;
+    end loop;
+ end loop;
+ commit;
+end;
